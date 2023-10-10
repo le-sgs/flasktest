@@ -1,17 +1,16 @@
 from flask import Flask, request, jsonify
 from selenium import webdriver
-import boto3
+from selenium.webdriver.chrome.options import Options
 
 app = Flask(__name__)
 
-# Initialize AWS DynamoDB client
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-table = dynamodb.Table('TaskAutomationTable')
-
 # Selenium Function for Task Automation
 def automate_task(url):
-    # Initialize Selenium WebDriver (You might need to adjust the path to your browser driver)
-    driver = webdriver.Chrome(executable_path='path/to/chromedriver')
+    # Initialize Selenium WebDriver in headless mode
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    driver = webdriver.Chrome(executable_path='path/to/chromedriver', options=chrome_options)
     driver.get(url)
 
     # Implement your Selenium automation logic here
@@ -26,12 +25,7 @@ def automate_task(url):
         email_field.send_keys('johndoe@example.com')
 
         # Submit the form
-        name_field.send_keys(Keys.RETURN)  # Pressing Enter in the last input field can simulate form submission
-
-        # Wait for a few seconds to ensure the form is submitted successfully (you might need to adjust the time)
-        driver.implicitly_wait(5)
-
-        # You can perform additional actions after the form submission if needed
+        name_field.submit()
 
         print("Form submitted successfully!")
 
@@ -40,7 +34,7 @@ def automate_task(url):
 
     finally:
         # Close the browser
-        driver.quit()    
+        driver.quit()
 
 # Flask Route for Task Submission
 @app.route('/submit-task', methods=['POST'])
@@ -52,8 +46,7 @@ def submit_task():
     # Automate the task using Selenium
     automate_task(task_url)
 
-    # Store task data in DynamoDB
-    table.put_item(Item={'TaskName': task_name, 'TaskURL': task_url})
+    # Store task data in DynamoDB (Add your DynamoDB code here if needed)
 
     return jsonify({'message': 'Task submitted successfully!'})
 
