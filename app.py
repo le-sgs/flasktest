@@ -1,21 +1,27 @@
 from flask import Flask, request, jsonify
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from pyvirtualdisplay import Display
+import boto3
 
 app = Flask(__name__)
 
+# Initialize AWS DynamoDB client
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+table = dynamodb.Table('TaskAutomationTable')
+
 # Selenium Function for Task Automation
 def automate_task(url):
-    # Initialize Selenium WebDriver in headless mode
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    driver = webdriver.Chrome(executable_path='path/to/chromedriver', options=chrome_options)
-    driver.get(url)
+    # Use Xvfb to run Firefox in headless mode
+    display = Display(visible=0, size=(800, 600))
+    display.start()
+
+    # Initialize Selenium WebDriver with Firefox
+    driver = webdriver.Firefox()
 
     # Implement your Selenium automation logic here
-    # For example: fill out forms, click buttons, extract data
     try:
+        driver.get(url)
+        
         # Find form elements and fill them out
         name_field = driver.find_element_by_id('name')  # Assuming the input field has id='name'
         email_field = driver.find_element_by_id('email')  # Assuming the input field has id='email'
@@ -33,8 +39,9 @@ def automate_task(url):
         print(f"Error occurred: {e}")
 
     finally:
-        # Close the browser
+        # Close the browser and stop virtual display
         driver.quit()
+        display.stop()
 
 # Flask Route for Task Submission
 @app.route('/submit-task', methods=['POST'])
@@ -46,9 +53,10 @@ def submit_task():
     # Automate the task using Selenium
     automate_task(task_url)
 
-    # Store task data in DynamoDB (Add your DynamoDB code here if needed)
+    # Store task data in DynamoDB
+    table.put_item(Item={'TaskName': task_name, 'TaskURL': task_url})
 
     return jsonify({'message': 'Task submitted successfully!'})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=80)
